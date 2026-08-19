@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { StringValue } from 'ms';
 
 import { User } from '../entities/user.entity';
 import { UsersModule } from '../users/users.module';
@@ -34,7 +35,7 @@ import { JwtStrategy } from './jwt.strategy';
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any,
+            expiresIn: expiresIn as StringValue,
           },
         };
       },
@@ -51,3 +52,4 @@ import { JwtStrategy } from './jwt.strategy';
   exports: [AuthService],
 })
 export class AuthModule {}
+
