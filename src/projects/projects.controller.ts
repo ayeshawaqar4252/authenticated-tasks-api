@@ -5,12 +5,14 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 
-import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { User } from '../entities/user.entity';
+
+import { ProjectsService } from './projects.service';
 
 @Controller('projects')
 export class ProjectsController {
@@ -36,11 +38,11 @@ export class ProjectsController {
   @Post()
   async create(
     @Body('name') name: string,
-    @Request() req: any,
+    @CurrentUser() user: User,
   ) {
     return this.projectsService.create(
       name,
-      req.user.id,
+      user.id,
     );
   }
 }
