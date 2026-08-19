@@ -1,23 +1,6 @@
 # Authenticated Tasks API
 
-A modular NestJS REST API for managing projects and tasks with JWT authentication, PostgreSQL, TypeORM, DTO validation, authorization, and automated tests.
-
-## Features
-
-* User registration and login
-* Password hashing with bcrypt
-* JWT-based authentication
-* Protected project and task write routes
-* Authenticated user resolution with `@CurrentUser`
-* Project and task CRUD operations
-* Task filtering by status, project, and assignee
-* DTO validation with `class-validator`
-* Global validation pipe
-* Global HTTP exception filter
-* PostgreSQL database with TypeORM
-* Database migrations with `synchronize: false`
-* CORS enabled for Next.js development
-* Unit and end-to-end tests
+A modular NestJS REST API for managing authenticated users, projects, and tasks. The API uses PostgreSQL, TypeORM, JWT authentication, bcrypt password hashing, DTO validation, and automated unit/e2e tests.
 
 ## Tech Stack
 
@@ -40,41 +23,54 @@ src/
 ├── auth/
 │   ├── dto/
 │   ├── auth.controller.ts
+│   ├── auth.module.ts
 │   ├── auth.service.ts
+│   ├── current-user.decorator.ts
 │   ├── jwt-auth.guard.ts
 │   └── jwt.strategy.ts
 ├── users/
+│   ├── users.module.ts
 │   ├── users.service.ts
-│   └── users.controller.ts
+│   └── users.service.spec.ts
 ├── projects/
 │   ├── projects.controller.ts
+│   ├── projects.module.ts
 │   └── projects.service.ts
 ├── tasks/
 │   ├── dto/
 │   ├── tasks.controller.ts
-│   └── tasks.service.ts
-├── entities/
+│   ├── tasks.module.ts
+│   ├── tasks.service.ts
+│   └── tasks.service.spec.ts
 ├── common/
 │   └── http-exception.filter.ts
+├── entities/
+├── migrations/
 ├── data-source.ts
 ├── app.module.ts
 └── main.ts
 
 test/
-└── app.e2e-spec.ts
+├── app.e2e-spec.ts
+└── jest-e2e.json
 ```
 
-## Project Setup
+## Requirements
 
-Install dependencies:
+* Node.js
+* PostgreSQL
+* npm
+* Existing Week 7 `task_manager_week7` database
+
+## Installation
 
 ```bash
 npm install
 ```
 
-Create a `.env` file in the project root.
-
 ## Environment Variables
+
+Create a `.env` file in the project root:
 
 ```env
 DB_HOST=localhost
@@ -87,41 +83,23 @@ JWT_SECRET=your_super_secret_key
 JWT_EXPIRES_IN=1h
 ```
 
-### Environment variable description
-
-| Variable         | Description                    |
-| ---------------- | ------------------------------ |
-| `DB_HOST`        | PostgreSQL host                |
-| `DB_PORT`        | PostgreSQL port                |
-| `DB_USERNAME`    | PostgreSQL username            |
-| `DB_PASSWORD`    | PostgreSQL password            |
-| `DB_DATABASE`    | Week 7 Task Manager database   |
-| `JWT_SECRET`     | Secret used to sign JWT tokens |
-| `JWT_EXPIRES_IN` | JWT token expiry duration      |
-
-Do not commit the `.env` file or real credentials to Git.
+Do not commit `.env` to GitHub.
 
 ## Database
 
-This API reuses the Week 7 PostgreSQL database and entities.
+The API uses the existing Week 7 PostgreSQL database.
 
-TypeORM synchronization is disabled:
+TypeORM synchronization is disabled. The database schema is managed through migrations.
 
-```text
-synchronize: false
-```
-
-The database schema is managed through migrations.
-
-Run migrations with:
+Run pending migrations with:
 
 ```bash
 npx typeorm-ts-node-commonjs migration:run -d src/data-source.ts
 ```
 
-## Run the Application
+## Running the Application
 
-Development mode:
+Development:
 
 ```bash
 npm run start:dev
@@ -131,11 +109,6 @@ Production build:
 
 ```bash
 npm run build
-```
-
-Production mode:
-
-```bash
 npm run start:prod
 ```
 
@@ -145,7 +118,7 @@ The API runs on:
 http://localhost:3000
 ```
 
-CORS allows the Next.js development origin:
+CORS is enabled for the Next.js development origin:
 
 ```text
 http://localhost:3000
@@ -153,47 +126,42 @@ http://localhost:3000
 
 ## Authentication
 
-### 1. Register
+### Register
 
-**POST** `/auth/register`
+```http
+POST /auth/register
+```
 
-Request:
+Request body:
 
 ```json
 {
   "name": "Ayesha",
-  "email": "ayesha@test.com",
+  "email": "ayesha@example.com",
   "password": "password123"
 }
 ```
 
-Response:
+The password is hashed using bcrypt before it is stored.
 
-```json
-{
-  "id": 7,
-  "name": "Ayesha",
-  "email": "ayesha@test.com",
-  "createdAt": "2026-08-19T06:09:35.224Z"
-}
+The password is never returned in the API response.
+
+### Login
+
+```http
+POST /auth/login
 ```
 
-The password is hashed with bcrypt before being stored and is never returned in API responses.
-
-### 2. Login
-
-**POST** `/auth/login`
-
-Request:
+Request body:
 
 ```json
 {
-  "email": "ayesha@test.com",
+  "email": "ayesha@example.com",
   "password": "password123"
 }
 ```
 
-Response:
+Successful response:
 
 ```json
 {
@@ -203,65 +171,54 @@ Response:
 
 The JWT contains:
 
-```json
-{
-  "sub": 7,
-  "email": "ayesha@test.com"
-}
-```
+* `sub` — authenticated user's ID
+* `email` — authenticated user's email
+* expiration time
 
-### 3. Send the JWT
+### Sending the Token
 
-For protected routes, send the token in the `Authorization` header:
+Protected requests must include the JWT in the `Authorization` header:
 
-```text
+```http
 Authorization: Bearer JWT_TOKEN
 ```
 
-Example:
-
-```text
-GET /tasks
-
-Authorization: Bearer eyJhbGciOiJIUzI1Ni...
-```
-
-The JWT guard reads the Bearer token, verifies it, and allows the request only when the token is valid.
+The JWT authentication guard validates the token before allowing access to protected routes.
 
 ## API Endpoints
 
 ### Authentication
 
-| Method | Endpoint         | Authentication | Description           |
-| ------ | ---------------- | -------------- | --------------------- |
-| POST   | `/auth/register` | No             | Register a new user   |
-| POST   | `/auth/login`    | No             | Login and receive JWT |
+| Method | Endpoint         | Description           |
+| ------ | ---------------- | --------------------- |
+| POST   | `/auth/register` | Register a new user   |
+| POST   | `/auth/login`    | Login and receive JWT |
 
 ### Projects
 
-| Method | Endpoint        | Authentication | Description      |
-| ------ | --------------- | -------------- | ---------------- |
-| GET    | `/projects`     | No             | List projects    |
-| GET    | `/projects/:id` | No             | Get a project    |
-| POST   | `/projects`     | JWT            | Create a project |
+| Method | Endpoint        | Authentication |
+| ------ | --------------- | -------------- |
+| GET    | `/projects`     | Public         |
+| GET    | `/projects/:id` | Public         |
+| POST   | `/projects`     | JWT required   |
 
 ### Tasks
 
-| Method | Endpoint     | Authentication | Description                     |
-| ------ | ------------ | -------------- | ------------------------------- |
-| GET    | `/tasks`     | No             | List authenticated user's tasks |
-| GET    | `/tasks/:id` | No             | Get a task with relations       |
-| POST   | `/tasks`     | JWT            | Create a task                   |
-| PATCH  | `/tasks/:id` | JWT            | Update a task                   |
-| DELETE | `/tasks/:id` | JWT            | Delete a task                   |
+| Method | Endpoint     | Authentication |
+| ------ | ------------ | -------------- |
+| GET    | `/tasks`     | Public         |
+| GET    | `/tasks/:id` | Public         |
+| POST   | `/tasks`     | JWT required   |
+| PATCH  | `/tasks/:id` | JWT required   |
+| DELETE | `/tasks/:id` | JWT required   |
 
 ## Task Creation
 
-**POST** `/tasks`
+### POST `/tasks`
 
-Requires:
+Authentication:
 
-```text
+```http
 Authorization: Bearer JWT_TOKEN
 ```
 
@@ -277,24 +234,29 @@ Example request:
 }
 ```
 
-### CreateTaskDto validation
+A successful creation returns HTTP `201 Created`.
 
-* `title` is required and must contain at least 3 characters
-* `description` is optional
-* `status` is restricted to the task status enum
-* `status` defaults to `todo`
-* `priority` must be an integer between 1 and 5
-* `projectId` is required and must be an integer
-* `assigneeId` is optional
-* `tagIds` is optional
+## Task Validation
 
-Unknown fields are rejected instead of being silently ignored.
+`CreateTaskDto` validates:
 
-## Task Filters
+* `title` — required and at least 3 characters
+* `description` — optional
+* `status` — optional and restricted to the task status enum
+* `priority` — required integer from 1 to 5
+* `projectId` — required integer
+* `assigneeId` — optional integer
+* `tagIds` — optional array of tag IDs
 
-**GET** `/tasks`
+The default task status is `todo`.
 
-Supported optional filters:
+Unknown DTO fields are rejected instead of being silently ignored.
+
+## List Tasks and Filters
+
+### GET `/tasks`
+
+The endpoint supports three optional filters:
 
 ```text
 /tasks?status=todo
@@ -308,43 +270,37 @@ Supported optional filters:
 /tasks?assigneeId=7
 ```
 
-Filters can be combined:
+The filters can be combined:
 
 ```text
 /tasks?status=todo&projectId=4&assigneeId=7
 ```
 
-## Task Relations
+## Get a Single Task
 
-`GET /tasks/:id` returns the task with the following relations loaded:
-
-* Project
-* Assignee
-* Tags
-
-Example:
-
-```json
-{
-  "id": 16,
-  "title": "Complete Authenticated NestJS API",
-  "description": "Finish and test the complete authenticated tasks API",
-  "status": "in_progress",
-  "priority": 5,
-  "project": {
-    "id": 4,
-    "name": "My NestJS Project"
-  },
-  "assignee": null,
-  "tags": []
-}
+```http
+GET /tasks/:id
 ```
 
-## Update Task
+The response includes:
 
-**PATCH** `/tasks/:id`
+* project
+* assignee
+* tags
 
-Requires JWT authentication.
+If the task does not exist, the API returns:
+
+```text
+404 Not Found
+```
+
+## Update a Task
+
+```http
+PATCH /tasks/:id
+```
+
+Only the fields that need to change have to be provided.
 
 Example:
 
@@ -356,73 +312,59 @@ Example:
 }
 ```
 
-`UpdateTaskDto` is derived using `PartialType`, so fields are optional during updates.
+## Delete a Task
 
-## Delete Task
+```http
+DELETE /tasks/:id
+```
 
-**DELETE** `/tasks/:id`
+Authentication is required.
 
-Requires JWT authentication.
-
-Successful deletion returns:
+A successful deletion returns:
 
 ```text
 204 No Content
 ```
 
-A task that does not exist returns:
+If the task does not exist, the API returns:
 
 ```text
 404 Not Found
 ```
 
-## Validation and Error Responses
+## Error Handling
 
-The application uses a global `ValidationPipe` with:
+The application uses a global HTTP exception filter.
 
-```text
-whitelist: true
-forbidNonWhitelisted: true
-transform: true
-```
-
-Errors are returned through a global exception filter using a consistent response shape:
+Errors follow a consistent response structure:
 
 ```json
 {
   "statusCode": 404,
   "message": "Task not found",
   "error": "Not Found",
-  "timestamp": "2026-08-19T06:35:31.626Z",
+  "timestamp": "2026-08-19T00:00:00.000Z",
   "path": "/tasks/999"
 }
 ```
 
-Invalid request bodies return `400 Bad Request` and identify the offending fields.
+Validation errors return HTTP `400`.
 
-Unauthenticated access to protected routes returns:
+Authentication failures return HTTP `401`.
 
-```json
-{
-  "statusCode": 401,
-  "message": "Unauthorized",
-  "error": "Unauthorized",
-  "timestamp": "2026-08-19T06:35:31.626Z",
-  "path": "/tasks"
-}
-```
+Missing resources return HTTP `404`.
 
-## Authorization
+## Validation
 
-Write operations on projects and tasks require a valid JWT.
+A global `ValidationPipe` is enabled with:
 
-The authenticated user's identity is obtained through the `@CurrentUser` decorator.
+* `whitelist: true`
+* `forbidNonWhitelisted: true`
+* `transform: true`
 
-Task and project ownership is checked inside the service layer.
+This means invalid request data is rejected and properties not declared by the DTO are not accepted.
 
-Controllers remain thin and do not contain direct repository/database calls.
-
-## Testing
+## Tests
 
 ### Unit Tests
 
@@ -432,18 +374,7 @@ Run:
 npm test
 ```
 
-The unit test suite covers:
-
-* UsersService
-* AuthService
-* TasksService
-
-Current test result:
-
-```text
-3 test suites passed
-20 tests passed
-```
+The unit test suite covers authentication, users, and task services.
 
 ### End-to-End Tests
 
@@ -455,77 +386,62 @@ npm run test:e2e
 
 The e2e suite covers:
 
-* User registration
-* User login
+* user registration
+* login
 * JWT authentication
-* Project creation
-* Unauthenticated project rejection
-* Task creation
-* Task listing
-* Task retrieval
-* Task update
-* Unauthenticated task rejection
-* Task deletion
+* project creation
+* unauthenticated access rejection
+* task creation
+* task listing
+* task retrieval
+* task update
+* task deletion
 * 404 after deletion
 
-Current result:
-
-```text
-1 test suite passed
-11 tests passed
-```
-
-## TypeScript Check
-
-Run:
+### TypeScript Check
 
 ```bash
 npx tsc --noEmit
 ```
 
-The project should compile with zero TypeScript errors.
-
-## Build Check
-
-Run:
+### Production Build
 
 ```bash
 npm run build
 ```
 
-The production build should complete successfully.
+## Expected Verification
+
+Before submitting the project, verify:
+
+```bash
+npx tsc --noEmit
+npm test
+npm run test:e2e
+npm run build
+```
+
+All commands should complete successfully.
 
 ## Authentication Flow
 
-The complete authentication flow is:
+1. The client sends name, email, and password to `POST /auth/register`.
+2. The server hashes the password with bcrypt and stores the hash.
+3. The client sends email and password to `POST /auth/login`.
+4. The server finds the user and compares the submitted password with the stored bcrypt hash.
+5. If the credentials are correct, the server signs a JWT containing the user's ID (`sub`) and email.
+6. The client stores the returned access token.
+7. The client sends the token on protected requests using:
 
-1. The client sends `name`, `email`, and `password` to `/auth/register`.
-2. The server checks whether the email already exists.
-3. The password is hashed using bcrypt.
-4. The user is stored with the bcrypt hash.
-5. The client sends email and password to `/auth/login`.
-6. The server finds the user by email.
-7. bcrypt compares the supplied password with the stored hash.
-8. If the password is incorrect, the server returns `401 Unauthorized`.
-9. If authentication succeeds, the server creates a JWT containing the user's `sub` and `email`.
-10. The client stores/uses the returned access token.
-11. For protected requests, the client sends `Authorization: Bearer <token>`.
-12. The JWT strategy verifies the token.
-13. `JwtAuthGuard` allows the request when the token is valid.
-14. `@CurrentUser` provides the authenticated account to the controller.
-15. The service applies ownership and business rules before accessing or modifying data.
+```http
+Authorization: Bearer JWT_TOKEN
+```
 
-## Security Notes
-
-* Passwords are never stored as plaintext.
-* Passwords are never returned in API responses.
-* Protected write routes require JWT authentication.
-* JWTs have a configured expiration time.
-* Unknown DTO fields are rejected.
-* Database synchronization is disabled.
-* Database credentials and JWT secrets must remain in environment variables.
-* `.env` must not be committed to Git.
+8. The JWT authentication guard extracts and validates the token.
+9. The JWT strategy verifies the token and resolves the authenticated user.
+10. `@CurrentUser()` can then provide the authenticated account to the controller handler.
+11. Protected services use that authenticated user ID to enforce ownership rules.
 
 ## License
 
-This project was created as part of the Coding Pixel Week 8 backend internship exercise.
+This project was created as part of the Week 8 Authenticated Tasks API exercise.
