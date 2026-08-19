@@ -83,19 +83,68 @@ JWT_SECRET=your_super_secret_key
 JWT_EXPIRES_IN=1h
 ```
 
+A `.env.example` file is included in the repository with the required environment variable names and empty values:
+
+```env
+DB_HOST=
+DB_PORT=
+DB_USERNAME=
+DB_PASSWORD=
+DB_DATABASE=
+
+JWT_SECRET=
+JWT_EXPIRES_IN=
+```
+
+Copy `.env.example` to `.env` and fill in the values for your local environment.
+
 Do not commit `.env` to GitHub.
 
 ## Database
 
-The API uses the existing Week 7 PostgreSQL database.
+The API uses the existing Week 7 PostgreSQL database:
 
-TypeORM synchronization is disabled. The database schema is managed through migrations.
+```text
+task_manager_week7
+```
 
-Run pending migrations with:
+TypeORM synchronization is disabled:
+
+```text
+synchronize: false
+```
+
+The database schema is managed through TypeORM migrations.
+
+### Create the Database
+
+If the Week 7 database does not already exist, create it with:
+
+```bash
+createdb task_manager_week7
+```
+
+Or from PostgreSQL:
+
+```sql
+CREATE DATABASE task_manager_week7;
+```
+
+### Run Migrations
+
+From the project root, run:
 
 ```bash
 npx typeorm-ts-node-commonjs migration:run -d src/data-source.ts
 ```
+
+If there are no pending migrations, TypeORM will report:
+
+```text
+No migrations are pending
+```
+
+This means the existing database schema is already up to date.
 
 ## Running the Application
 
@@ -412,16 +461,37 @@ npm run build
 
 ## Expected Verification
 
-Before submitting the project, verify:
+Before submitting the project, verify that all required checks pass:
 
 ```bash
 npx tsc --noEmit
+```
+
+```bash
 npm test
+```
+
+```bash
 npm run test:e2e
+```
+
+```bash
 npm run build
 ```
 
-All commands should complete successfully.
+Migration status can be checked with:
+
+```bash
+npx typeorm-ts-node-commonjs migration:run -d src/data-source.ts
+```
+
+The expected result when the database is already current is:
+
+```text
+No migrations are pending
+```
+
+All commands should complete successfully before submission.
 
 ## Authentication Flow
 
@@ -441,6 +511,28 @@ Authorization: Bearer JWT_TOKEN
 9. The JWT strategy verifies the token and resolves the authenticated user.
 10. `@CurrentUser()` can then provide the authenticated account to the controller handler.
 11. Protected services use that authenticated user ID to enforce ownership rules.
+
+## Submission Checklist
+
+Before submitting the repository:
+
+* [ ] `.env` is not committed.
+* [ ] `.env.example` exists and contains all required environment variable names.
+* [ ] Database configuration uses environment variables.
+* [ ] TypeORM `synchronize` is disabled.
+* [ ] Migrations are up to date.
+* [ ] DTO validation is enabled.
+* [ ] JWT authentication works.
+* [ ] Protected routes reject unauthenticated requests.
+* [ ] Passwords are hashed with bcrypt.
+* [ ] Passwords are not returned in API responses.
+* [ ] Unit tests pass.
+* [ ] E2E tests pass.
+* [ ] TypeScript compilation passes.
+* [ ] Production build passes.
+* [ ] README commands match the actual project structure and scripts.
+* [ ] Final work is pushed to the repository.
+* [ ] The required work is merged through a pull request.
 
 ## License
 
